@@ -268,6 +268,39 @@ class FieldGrid(metaclass=ABCMeta):
         return self.center_ras.shape[0] if self.center_ras is not None else 0
 
     #--------------------------------------------------------------------------
+    @abstractmethod
+    def __str__(self):
+        """Return information about the FieldGrid instance.
+
+        Returns
+        -------
+        info : str
+            Description of main properties.
+        """
+
+        info = dedent("""\
+            FieldGrid : Field grid
+            Field of view:    {0:7.4f} deg
+            Overlap N-S       {1:7.4f} deg
+            Overlap E-W       {2:7.4f} deg
+            Tilt:             {3:+7.4f} deg
+            Gal. lat. lim:    {4:s}
+            Dec. lim. N:      {5:s}
+            Dec. lim. S:      {6:s}
+            Number of fields: {7:d}""".format(
+                np.degrees(self.fov), np.degrees(self.overlap_ns),
+                np.degrees(self.overlap_ew), np.degrees(self.tilt),
+                f'{np.degrees(self.gal_lat_lim):7.4f} deg' \
+                    if self.gal_lat_lim else 'None',
+                f'{np.degrees(self.dec_lim_north):7.4f} deg' \
+                    if self.dec_lim_north else 'None',
+                f'{np.degrees(self.dec_lim_south):7.4f} deg' \
+                    if self.dec_lim_south else 'None',
+                self.center_ras.shape[0]))
+
+        return info
+
+    #--------------------------------------------------------------------------
     def _field_corners_init(self, fov):
         """Create field corner points in cartesian coordinates.
 
@@ -625,6 +658,38 @@ class FieldGridIsoLat(FieldGrid):
                 verbose=verbose)
 
     #--------------------------------------------------------------------------
+    def __str__(self):
+        """Return information about the FieldGrid instance.
+
+        Returns
+        -------
+        info : str
+            Description of main properties.
+        """
+
+        info = dedent("""\
+            FieldGridIsoLat : Iso-latitudinal field grid
+            Field of view:    {0:7.4f} deg
+            Overlap N-S       {1:7.4f} deg
+            Overlap E-W       {2:7.4f} deg
+            Tilt:             {3:+7.4f} deg
+            Gal. lat. lim:    {4:s}
+            Dec. lim. N:      {5:s}
+            Dec. lim. S:      {6:s}
+            Number of fields: {7:d}""".format(
+                np.degrees(self.fov), np.degrees(self.overlap_ns),
+                np.degrees(self.overlap_ew), np.degrees(self.tilt),
+                f'{np.degrees(self.gal_lat_lim):7.4f} deg' \
+                    if self.gal_lat_lim else 'None',
+                f'{np.degrees(self.dec_lim_north):7.4f} deg' \
+                    if self.dec_lim_north else 'None',
+                f'{np.degrees(self.dec_lim_south):7.4f} deg' \
+                    if self.dec_lim_south else 'None',
+                self.center_ras.shape[0]))
+
+        return info
+
+    #--------------------------------------------------------------------------
     def _split_declination(self):
         """Split declination into rings.
 
@@ -897,6 +962,44 @@ class FieldGridGrtCirc(FieldGrid):
                 dec_lim_north=dec_lim_north, dec_lim_south=dec_lim_south,
                 gal_lat_lim=gal_lat_lim, gal_lat_lim_strict=gal_lat_lim_strict,
                 verbose=verbose)
+
+    #--------------------------------------------------------------------------
+    def __str__(self):
+        """Return information about the FieldGrid instance.
+
+        Returns
+        -------
+        info : str
+            Description of main properties.
+        """
+
+        info = dedent("""\
+            FieldGridGrtCirc : Tilted great-circle field grid
+            Field of view:    {0:7.4f} deg
+            Overlap N-S       {1:7.4f} deg
+            Overlap E-W       {2:7.4f} deg
+            Tilt:             {3:+7.4f} deg
+            Gal. lat. lim:    {4:s}
+            Dec. lim. N:      {5:s}
+            Dec. lim. S:      {6:s}
+            Grid rot. RA:     {7:s}
+            Grid rot. dec:    {8:s}
+            Number of fields: {9:d}""".format(
+                np.degrees(self.fov), np.degrees(self.overlap_ns),
+                np.degrees(self.overlap_ew), np.degrees(self.tilt),
+                f'{np.degrees(self.gal_lat_lim):7.4f} deg' \
+                    if self.gal_lat_lim else 'None',
+                f'{np.degrees(self.dec_lim_north):7.4f} deg' \
+                    if self.dec_lim_north else 'None',
+                    f'{np.degrees(self.dec_lim_south):7.4f} deg' \
+                        if self.dec_lim_south else 'None',
+                f'{np.degrees(self.frame_rot_ra):7.4f} deg' \
+                    if self.frame_rot_ra else 'None',
+                f'{np.degrees(self.frame_rot_dec):7.4f} deg' \
+                    if self.frame_rot_dec else 'None',
+                self.center_ras.shape[0]))
+
+        return info
 
     #--------------------------------------------------------------------------
     def _split_declination(self):
