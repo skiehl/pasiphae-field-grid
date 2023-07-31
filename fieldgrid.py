@@ -180,7 +180,7 @@ class FieldGrid(metaclass=ABCMeta):
 
     #--------------------------------------------------------------------------
     def __init__(
-            self, fov, overlap_ns=0., overlap_ew=0., tilt=0.,
+            self, fov, overlap_ns=0, overlap_ew=0, tilt=0,
             dec_lim_north=np.pi/2, dec_lim_south=-np.pi/2, gal_lat_lim=0,
             gal_lat_lim_strict=False, verbose=0):
         """Create FieldGrid instance.
@@ -188,38 +188,47 @@ class FieldGrid(metaclass=ABCMeta):
         Parameters
         ----------
         fov : float
-            Field of view side length in radian.
+            Field of view side length in radians.
         overlap_ns : float, optional
             Overlap between neighboring fields in North-South direction in
-            radian. The default is 0..
+            radian. The default is 0.
         overlap_ew : float, optional
             Overlap between neighboring fields in East-West direction in
-            radian. The default is 0..
+            radian. The default is 0.
         tilt : float, optional
-            Tilt of the field of view in radian. The default is 0..
+            Tilt of the field of view in radians. The default is 0.
         dec_lim_north : float, optional
-            Northern declination limit in radian. Fields North of this limit
+            Northern declination limit in radians. Fields North of this limit
             are excluded. The default is np.pi/2.
         dec_lim_south : float, optional
-            Southern declination limit in radian. Fields South of this limit
+            Southern declination limit in radians. Fields South of this limit
             are excluded. The default is -np.pi/2.
         gal_lat_lim : float, optional
-            Galactic latitude limit in radian. If the limit is X, fields with
-            Galactic latitude in [-X, X] are excluded. The default is 0..
-        gal_lat_lim_strict : TYPE, optional
-            DESCRIPTION. The default is False.
-        verbose : TYPE, optional
-            DESCRIPTION. The default is 0.
+            Galactic latitude limit in radians. If the limit is X, fields with
+            Galactic latitude in [-X, X] are excluded. The default is 0.
+        gal_lat_lim_strict : bool, optional
+            If False, fields will be excluded when their field center is
+            within the Galactic latitude limits. If True, field will be
+            excluded only if all of the field corners are within the Galactic
+            latitude limits. The default is False.
+        verbose : int, optional
+            Set level of verbosity. 0 only gives most essential information.
+            1 provides more details; 2 even more. -1 turns of any messages. The
+            default is 0.
 
         Raises
         ------
         ValueError
-            DESCRIPTION.
+            Raise with the North-South or East-West overlap exceeds the field
+            of view size.
+            Raised when the Northern or Southern declination limits exceed
+            pi/2.
+            Raised when Southern declination limit is higher than Southern
+            declination limit.
 
         Returns
         -------
-        None.
-
+        None
         """
 
         # check input:
@@ -227,10 +236,14 @@ class FieldGrid(metaclass=ABCMeta):
             raise ValueError("Overlap must be smaller than field of view.")
         if overlap_ew >= fov:
             raise ValueError("Overlap must be smaller than field of view.")
-        if dec_lim_north > np.pi / 2.:
+        if abs(dec_lim_north) > np.pi / 2.:
             raise ValueError("Northern declination limit cannot exceed pi/2.")
-        if dec_lim_south < -np.pi / 2.:
+        if abs(dec_lim_south) > np.pi / 2.:
             raise ValueError("Southern declination limit cannot exceed -pi/2.")
+        if dec_lim_south > dec_lim_north:
+            raise ValueError(
+                    "Northern declination must be higher than Southern "
+                    "declination limit.")
 
         self.fov = fov
         self.overlap_ns = overlap_ns
@@ -250,7 +263,7 @@ class FieldGrid(metaclass=ABCMeta):
 
     #--------------------------------------------------------------------------
     def __len__(self):
-        # TODO: docstring
+        """Returns length of field grid. I.e. number of fields."""
 
         return self.center_ras.shape[0] if self.center_ras is not None else 0
 
@@ -284,10 +297,23 @@ class FieldGrid(metaclass=ABCMeta):
     def _field_corners_rot(self, fov, tilt=0, center_ra=0, center_dec=0):
         """Calculate field corner points at specified field center coordinates.
 
+        Parameters
+        ----------
+        fov : float
+            Field of view side length in radians.
+        tilt : float, optional
+            Tilt of the field of view in radians. The default is 0.
+        center_ra : float, optional
+            Field center right ascension. The default is 0.
+        center_dec : float, optional
+            Field center declination. The default is 0.
+
         Returns
         -------
-        corners_coord : astropy.coordinates.SkyCoord
-            The sky coordinates of the field corners.
+        corner_ras : np.ndarray or float
+            Corner right ascension in radians.
+        corner_decs : np.ndarray or float
+            Corner declination in radians.
         """
 
         x, y, z = self._field_corners_init(fov)
@@ -300,7 +326,12 @@ class FieldGrid(metaclass=ABCMeta):
 
     #--------------------------------------------------------------------------
     def _calc_field_corners(self):
-        # TODO: docsting
+        """Calculate field corners.
+
+        Returns
+        -------
+        None
+        """
 
         if self.verbose > 0:
             print('  Calculate field corners..')
@@ -328,7 +359,18 @@ class FieldGrid(metaclass=ABCMeta):
     #--------------------------------------------------------------------------
     @abstractmethod
     def _calc_field_centers(self):
-        # TODO: docsting
+        """Calculate field centers.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        This is an abstract method that needs to be specified in the
+        sub-classes. The field centers depend on the specific grid layout that
+        is specified in sub-classes of this generic parent class.
+        """
 
         pass
 
@@ -336,7 +378,41 @@ class FieldGrid(metaclass=ABCMeta):
     def in_galactic_plane(
             self, gal_lat_lim, center_ras=None, center_decs=None,
             corner_ras=None, corner_decs=None, verbose=0):
-        # TODO: docstring
+        """Check which fields are located within the Galactic latitude limits.
+
+        Parameters
+        ----------
+        gal_lat_lim : float, optional
+            Galactic latitude limit in radians. If the limit is X, fields with
+            Galactic latitude in [-X, X] are flagged.
+        center_ras : np.ndarray
+            Field center right ascensions in radians. The default is None
+        center_decs : np.ndarray
+            Field center declinations in radians. The default is None
+        corner_ras : np.ndarray
+            Field corner right ascensions in radians. The default is None
+        corner_decs : np.ndarray
+            Field corner declinations in radians. The default is None
+        verbose : TYPE, optional
+            Set level of verbosity. Information is printed by this method only
+            if verbose > 0. The default is 0.
+
+        Returns
+        -------
+        np.ndarray
+            Boolean array. Fields within the Galactic plane limits are marked
+            as True, otherwise as False.
+
+        Notes
+        -----
+        How the fields are identified as within the limits depends on the
+        `gal_lat_lim_strict` argument set with the class initialization.
+
+        If simple, i.e. `gal_lat_lim_strict=False`, fields will be flagged
+        when their field center is within the Galactic latitude limits. If
+        strict, i.e. `gal_lat_lim_strict=True`, field will be flagged only if
+        all of the field corners are within the Galactic latitude limits.
+        """
 
         # check input:
         if center_ras is not None and center_decs is not None:
@@ -377,7 +453,20 @@ class FieldGrid(metaclass=ABCMeta):
 
     #--------------------------------------------------------------------------
     def _avoid_galactic_plane(self):
-        # TODO: docstring
+        """Remove fiels that are located in the Galactic plane limits.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        The Galactic plane limits are given at the initialization of the class.
+        How the fields are identified as within the limits depends on the
+        `gal_lat_lim_strict` argument set with the class initialization.
+        Verbosity: This method only prints out information if the verbosity set
+        with the class initialization is > 1.
+        """
 
         if not self.gal_lat_lim:
             return None
@@ -414,7 +503,18 @@ class FieldGrid(metaclass=ABCMeta):
 
     #--------------------------------------------------------------------------
     def _create_fields(self):
-        # TODO: docsting
+        """Create fields.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        Verbosity: This method prints out information if the verbosity set
+        with the class initialization is >= 0. This is the most basic level of
+        verbosity.
+        """
 
         if self.verbose > -1:
             print('Create fields..')
@@ -428,13 +528,31 @@ class FieldGrid(metaclass=ABCMeta):
 
     #--------------------------------------------------------------------------
     def get_center_coords(self):
-        # TODO: docsting
+        """Return the field center coordinates.
+
+        Returns
+        -------
+        self.center_ras : np.ndarray
+            Field center right ascensions.
+        self.center_decs : np.ndarray
+            Field center declinations.
+        """
 
         return self.center_ras, self.center_decs
 
     #--------------------------------------------------------------------------
     def get_corner_coords(self):
-        # TODO: docsting
+        """Return the field corner coordinates.
+
+        Returns
+        -------
+        self.center_ras : np.ndarray
+            Field corner right ascensions. Nx4 dimensional array. First axis
+            related to the N fields. Second axis to the four field corners.
+        self.center_decs : np.ndarray
+            Field corner declinations. Nx4 dimensional array. First axis
+            related to the N fields. Second axis to the four field corners.
+        """
 
         return self.corner_ras, self.corner_decs
 
@@ -449,10 +567,56 @@ class FieldGridIsoLat(FieldGrid):
 
     #--------------------------------------------------------------------------
     def __init__(
-            self, fov, overlap_ns=0., overlap_ew=0., tilt=0.,
-            dec_lim_north=np.pi/2, dec_lim_south=-np.pi/2, gal_lat_lim=0.,
+            self, fov, overlap_ns=0, overlap_ew=0, tilt=0,
+            dec_lim_north=np.pi/2, dec_lim_south=-np.pi/2, gal_lat_lim=0,
             gal_lat_lim_strict=False, verbose=0):
-        # TODO: docstring
+        """Create FieldGridIsoLat instance.
+
+        Parameters
+        ----------
+        fov : float
+            Field of view side length in radians.
+        overlap_ns : float, optional
+            Overlap between neighboring fields in North-South direction in
+            radian. The default is 0.
+        overlap_ew : float, optional
+            Overlap between neighboring fields in East-West direction in
+            radian. The default is 0.
+        tilt : float, optional
+            Tilt of the field of view in radians. The default is 0.
+        dec_lim_north : float, optional
+            Northern declination limit in radians. Fields North of this limit
+            are excluded. The default is np.pi/2.
+        dec_lim_south : float, optional
+            Southern declination limit in radians. Fields South of this limit
+            are excluded. The default is -np.pi/2.
+        gal_lat_lim : float, optional
+            Galactic latitude limit in radians. If the limit is X, fields with
+            Galactic latitude in [-X, X] are excluded. The default is 0.
+        gal_lat_lim_strict : bool, optional
+            If False, fields will be excluded when their field center is
+            within the Galactic latitude limits. If True, field will be
+            excluded only if all of the field corners are within the Galactic
+            latitude limits. The default is False.
+        verbose : int, optional
+            Set level of verbosity. 0 only gives most essential information.
+            1 provides more details; 2 even more. -1 turns of any messages. The
+            default is 0.
+
+        Raises
+        ------
+        ValueError
+            Raise with the North-South or East-West overlap exceeds the field
+            of view size.
+            Raised when the Northern or Southern declination limits exceed
+            pi/2.
+            Raised when Southern declination limit is higher than Southern
+            declination limit.
+
+        Returns
+        -------
+        None
+        """
 
         super(FieldGridIsoLat, self).__init__(
                 fov, overlap_ns=overlap_ns, overlap_ew=overlap_ew, tilt=tilt,
@@ -462,7 +626,18 @@ class FieldGridIsoLat(FieldGrid):
 
     #--------------------------------------------------------------------------
     def _split_declination(self):
-        # TODO: docstring
+        """Split declination into rings.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        Verbosity: This method prints out information if the verbosity set
+        with the class initialization is > 1. This is the most detailed level
+        of verbosity.
+        """
 
         dec_range = self.dec_lim_north - self.dec_lim_south
         field_range = self.fov - self.overlap_ns
@@ -486,10 +661,42 @@ class FieldGridIsoLat(FieldGrid):
         dec1 = dec0 + field_range * (n - 1)
         self.declinations = np.linspace(dec0, dec1, n)
 
-
     #--------------------------------------------------------------------------
     def _close_gaps(self, ras, decs, dec, n):
-        # TODO: docstring
+        """Close gaps in declination rings.
+
+        Parameters
+        ----------
+        ras : np.ndarray
+            Field center right ascensions in radians.
+        decs : np.ndarray
+            Field center declinations in radians.
+        dec : float
+            Declination of the declination ring in radians. Must equal all
+            entries in `decs`.
+        n : int
+            Number of fields in declination ring. Must equal the shape of `ras`
+            and `decs`.
+
+        Returns
+        -------
+        ras : np.ndarray
+            Field center right ascensions in radians.
+        decs : np.ndarray
+            Field center declinations in radians.
+        n : int
+            New number of fields in declination ring.
+
+        Notes
+        -----
+        At higher declinations, where neighboring fields in a declination ring
+        are tilted relative to another, gaps can occur. This method takes an
+        initial set of fields and adds fields (if necessary) until all gaps are
+        closed.
+        Verbosity: This method prints out information if the verbosity set
+        with the class initialization is > 1. This is the most detailed level
+        of verbosity.
+        """
 
         # get first two field's corners:
         field0_corner_ras, field0_corner_decs = self._field_corners_rot(
@@ -498,7 +705,7 @@ class FieldGridIsoLat(FieldGrid):
                 self.fov, tilt=self.tilt, center_ra=ras[1], center_dec=decs[1])
 
         # select two field corners - fields in the South:
-        if field0_corner_decs[0] < 0.:
+        if field0_corner_decs[0] < 0:
             i = 2
             j = 3
 
@@ -516,7 +723,7 @@ class FieldGridIsoLat(FieldGrid):
         # increase number of fields until gaps are removed:
         while ra0 < ra1:
             n += 1
-            ras = np.linspace(0., 2.*np.pi, n+1)[:-1]
+            ras = np.linspace(0, 2.*np.pi, n+1)[:-1]
             decs = np.ones(n) * dec
 
             ra0 = self._field_corners_rot(
@@ -530,7 +737,28 @@ class FieldGridIsoLat(FieldGrid):
 
     #--------------------------------------------------------------------------
     def _field_centers_along_dec(self, dec, n_min=3):
-        # TODO: docstring
+        """Create fields along a declination ring.
+
+        Parameters
+        ----------
+        dec : float
+            Declination of the declination ring in radians.
+        n_min : int, optional
+            Minimum number of fields required. The default is 3.
+
+        Returns
+        -------
+        ras : np.ndarray
+            Field center right ascensions.
+        decs : np.ndarray
+            Field center declinations.
+
+        Notes
+        -----
+        Verbosity: This method prints out information if the verbosity set
+        with the class initialization is > 1. This is the most detailed level
+        of verbosity.
+        """
 
         if self.verbose > 1:
             print(f'    Dec: {np.degrees(dec):+6.2f} deg. ', end='')
@@ -549,7 +777,7 @@ class FieldGridIsoLat(FieldGrid):
             if n < n_min:
                 n = n_min
 
-            ras = np.linspace(0., 2.*np.pi, n+1)[:-1]
+            ras = np.linspace(0, 2.*np.pi, n+1)[:-1]
             decs = np.ones(n) * dec
             ras, decs, n = self._close_gaps(ras, decs, dec, n)
 
@@ -560,7 +788,20 @@ class FieldGridIsoLat(FieldGrid):
 
     #--------------------------------------------------------------------------
     def _calc_field_centers(self):
-        # TODO: docsting
+        """Calculate field centers.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        This overwrites the generic method from the parent class and implements
+        the creation of this specific field grid.
+        Verbosity: This method prints out information if the verbosity set
+        with the class initialization is > 0. This is the more detailed level
+        of verbosity.
+        """
 
         if self.verbose > 0:
             print('  Calculate field centers..')
@@ -587,11 +828,65 @@ class FieldGridGrtCirc(FieldGrid):
 
     #--------------------------------------------------------------------------
     def __init__(
-            self, fov, overlap_ns=0., overlap_ew=0., tilt=0.,
+            self, fov, overlap_ns=0, overlap_ew=0, tilt=0,
             dec_lim_north=np.pi/2, dec_lim_south=-np.pi/2,
-            dec_lim_strict=False, gal_lat_lim=0., gal_lat_lim_strict=False,
-            frame_rot_ra=0., frame_rot_dec=0., verbose=0):
-        # TODO: docstring
+            dec_lim_strict=False, gal_lat_lim=0, gal_lat_lim_strict=False,
+            frame_rot_ra=0, frame_rot_dec=0, verbose=0):
+        """Create FieldGridGrtCirc instance.
+
+        Parameters
+        ----------
+        fov : float
+            Field of view side length in radians.
+        overlap_ns : float, optional
+            Overlap between neighboring fields in North-South direction in
+            radian. The default is 0.
+        overlap_ew : float, optional
+            Overlap between neighboring fields in East-West direction in
+            radian. The default is 0.
+        tilt : float, optional
+            Tilt of the field of view in radians. The default is 0.
+        dec_lim_north : float, optional
+            Northern declination limit in radians. Fields North of this limit
+            are excluded. The default is np.pi/2.
+        dec_lim_south : float, optional
+            Southern declination limit in radians. Fields South of this limit
+            are excluded. The default is -np.pi/2.
+        gal_lat_lim : float, optional
+            Galactic latitude limit in radians. If the limit is X, fields with
+            Galactic latitude in [-X, X] are excluded. The default is 0.
+        gal_lat_lim_strict : bool, optional
+            If False, fields will be excluded when their field center is
+            within the Galactic latitude limits. If True, field will be
+            excluded only if all of the field corners are within the Galactic
+            latitude limits. The default is False.
+        frame_rot_ra = float, optional
+            Angle in radians, by which the frame grid is rotated in right
+            ascension. The right ascension rotation is executed before the
+            declination rotation. The default is 0.
+        frame_rot_dec = float, optional
+            Angle in radians, by which the frame grid is rotated in
+            declination. The right ascension rotation is executed before the
+            declination rotation. The default is 0.
+        verbose : int, optional
+            Set level of verbosity. 0 only gives most essential information.
+            1 provides more details; 2 even more. -1 turns of any messages. The
+            default is 0.
+
+        Raises
+        ------
+        ValueError
+            Raise with the North-South or East-West overlap exceeds the field
+            of view size.
+            Raised when the Northern or Southern declination limits exceed
+            pi/2.
+            Raised when Southern declination limit is higher than Southern
+            declination limit.
+
+        Returns
+        -------
+        None
+        """
 
         self.dec_lim_strict = dec_lim_strict
         self.frame_rot_ra = np.mod(frame_rot_ra, np.pi*2)
@@ -605,7 +900,19 @@ class FieldGridGrtCirc(FieldGrid):
 
     #--------------------------------------------------------------------------
     def _split_declination(self):
-        # TODO: docstring
+        """Split full sky declination range into equdistant steps.
+
+        Returns
+        -------
+        decs : np.ndarray
+            Declinations.
+
+        Notes
+        -----
+        Verbosity: This method prints out information if the verbosity set
+        with the class initialization is > 1. This is the most detailed level
+        of verbosity.
+        """
 
         field_range = self.fov - self.overlap_ns
         n = int(np.ceil((np.pi - self.overlap_ns) / field_range))
@@ -621,10 +928,22 @@ class FieldGridGrtCirc(FieldGrid):
 
     #--------------------------------------------------------------------------
     def _split_ra(self):
-        # TODO: docstring
+        """Split full sky right ascension range into equdistant steps.
+
+        Returns
+        -------
+        ras : np.ndarray
+            Right ascensions.
+
+        Notes
+        -----
+        Verbosity: This method prints out information if the verbosity set
+        with the class initialization is > 1. This is the most detailed level
+        of verbosity.
+        """
 
         n = int(np.ceil(2 * np.pi / (self.fov - self.overlap_ew)))
-        ras = np.linspace(0., 2.*np.pi, n+1)[:-1]
+        ras = np.linspace(0, 2.*np.pi, n+1)[:-1]
 
         if self.verbose > 1:
             print(f'    Number of RA half circles: {n}')
@@ -633,7 +952,32 @@ class FieldGridGrtCirc(FieldGrid):
 
     #--------------------------------------------------------------------------
     def _rotate_grid(self, ras, decs):
-        # TODO: docstring
+        """Rotate the field grid in right ascension and declination.
+
+        Parameters
+        ----------
+        ras : np.ndarray
+            Field center right ascensions in radians.
+        decs : np.ndarray
+            Field center declinations in radians.
+
+        Returns
+        -------
+        ras_rot : np.ndarray
+            Field center right ascensions in radians after the rotation.
+        decs_rot : np.ndarray
+            Field center declinations in radians after the rotation.
+
+        Notes
+        -----
+        The rotation angles are given at the class intitialization through
+        arguments `frame_rot_ra` and `frame_rot_dec`.
+        The right ascension rotation is executed before the
+        declination rotation.
+        Verbosity: This method prints out information if the verbosity set
+        with the class initialization is > 1. This is the most detailed level
+        of verbosity.
+        """
 
         if not self.frame_rot_ra and not self.frame_rot_dec:
             return ras, decs
@@ -661,7 +1005,21 @@ class FieldGridGrtCirc(FieldGrid):
 
     #--------------------------------------------------------------------------
     def _declination_limits(self):
-        # TODO: docstring
+        """Apply declination limits.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        The declination limits are given at the class intitialization through
+        arguments `dec_lim_north` and `dec_lim_south`.
+        Declination limits are applied after rotating the grid.
+        Verbosity: This method prints out information if the verbosity set
+        with the class initialization is > 0.  Details are only given at
+        verbosity > 1.
+        """
 
         apply_north = ~np.isclose(self.dec_lim_north, np.pi/2.)
         apply_south = ~np.isclose(self.dec_lim_south, -np.pi/2.)
@@ -713,7 +1071,20 @@ class FieldGridGrtCirc(FieldGrid):
 
     #--------------------------------------------------------------------------
     def _calc_field_centers(self):
-        # TODO: docsting
+        """Calculate field centers.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        This overwrites the generic method from the parent class and implements
+        the creation of this specific field grid.
+        Verbosity: This method prints out information if the verbosity set
+        with the class initialization is > 0. This is the more detailed level
+        of verbosity.
+        """
 
         if self.verbose > 0:
             print('  Calculate field centers..')
@@ -729,7 +1100,20 @@ class FieldGridGrtCirc(FieldGrid):
 
     #--------------------------------------------------------------------------
     def _create_fields(self):
-        # TODO: docsting
+        """Create fields.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        This method overwrites the generic method from the parent class, as
+        the order of steps differs.
+        Verbosity: This method prints out information if the verbosity set
+        with the class initialization is >= 0. This is the most basic level of
+        verbosity.
+        """
 
         if self.verbose > -1:
             print('Create fields..')
@@ -745,22 +1129,48 @@ class FieldGridGrtCirc(FieldGrid):
 #==============================================================================
 
 class FieldGridTester:
-    # TODO: docstring
+    """A class to test field grid setups.
+    """
 
     #--------------------------------------------------------------------------
-    def __init__(self, grid, sampler=None):
-        # TODO: docstring
+    def __init__(self, grid, sampler='spherical'):
+        """Crate FieldGridTester instance.
+
+        Parameters
+        ----------
+        grid : FieldGrid-type
+            A field grid that needs to be tested.
+        sampler : str, optional
+            Select a sampler. 'sherical' samples point uniformly over the sky.
+            'radec', samples points uniformly in the RA-dec plane, i.e. more
+            points at higher declinations. The default is 'spherical'.
+
+        Raises
+        ------
+        ValueError
+            Raised if `grid` is not of FieldGrid-type.
+            Raised if `sample` is not 'spherical' or 'radec'.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        The choice of the sampler affects the type of test. The sperical
+        sampler is used to estimate the fraction of sky coverage with no fields
+        (gaps), 1 field, 2 fields, etc over the sky. The radec-sampler is used
+        to identify gaps, which are mote likely to occure near the poles.
+        """
 
         # check input:
         if not isinstance(grid, FieldGrid):
             raise ValueError("'grid' must be a FieldGrid instance.")
-        if sampler is None:
-            self.sampler = None
-        elif sampler.lower() in ['spherical', 'radec']:
+        if sampler.lower() in ['spherical', 'radec']:
             self.sampler = sampler.lower()
         else:
             raise ValueError(
-                    "'sampler' must be 'spherical', 'radec', or None.")
+                    "'sampler' must be 'spherical' or 'radec'.")
 
         self.grid = grid
 
@@ -790,15 +1200,35 @@ class FieldGridTester:
 
     #--------------------------------------------------------------------------
     def __len__(self):
-        # TODO: docstring
+        """Returns length of field grid tester. I.e. number of test points."""
 
         return len(self.test_points['ra'])
 
     #--------------------------------------------------------------------------
     def _sample_spherical(
             self, n_points, dec_lim_north=np.pi/2, dec_lim_south=-np.pi/2,
-            gal_lat_lim=0.):
-        # TODO: docstring
+            gal_lat_lim=0):
+        """Draw random samples uniformly over the sky.
+
+        Parameters
+        ----------
+        n_points : int
+            Number of random samples.
+        dec_lim_north : float, optional
+            Northern declination limit in radian. The default is np.pi/2.
+        dec_lim_south : float, optional
+            Southern declination limit in radian. The default is -np.pi/2.
+        gal_lat_lim : float, optional
+            Galactic latitude limit in radians. If the limit is X, points with
+            Galactic latitude in [-X, X] are excluded. The default is 0.
+
+        Returns
+        -------
+        ra : np.ndarray
+            Right ascensions of the randomly samples points in radians.
+        dec : np.ndarray
+            Declinations of the randomly samples points in radians.
+        """
 
         ra = []
         dec = []
@@ -832,8 +1262,28 @@ class FieldGridTester:
     #--------------------------------------------------------------------------
     def _sample_radec(
                 self, n_points, dec_lim_north=np.pi/2, dec_lim_south=-np.pi/2,
-                gal_lat_lim=0.):
-        # TODO: docstring
+                gal_lat_lim=0):
+        """Draw random samples uniformly in the RA-Dec plane
+
+        Parameters
+        ----------
+        n_points : int
+            Number of random samples.
+        dec_lim_north : float, optional
+            Northern declination limit in radian. The default is np.pi/2.
+        dec_lim_south : float, optional
+            Southern declination limit in radian. The default is -np.pi/2.
+        gal_lat_lim : float, optional
+            Galactic latitude limit in radians. If the limit is X, points with
+            Galactic latitude in [-X, X] are excluded. The default is 0.
+
+        Returns
+        -------
+        ra : np.ndarray
+            Right ascensions of the randomly samples points in radians.
+        dec : np.ndarray
+            Declinations of the randomly samples points in radians.
+        """
 
         ra = []
         dec = []
@@ -861,7 +1311,29 @@ class FieldGridTester:
 
     #--------------------------------------------------------------------------
     def _sample_test_points(self, n_points):
-        # TODO: docstring
+        """Draw random test points.
+
+        Parameters
+        ----------
+        n_points : int
+            Number of random test points.
+
+        Returns
+        -------
+        n_needed : int
+            Number of new test points.
+        ra : np.ndarray
+            Right ascensions of the randomly samples points in radians.
+        dec : np.ndarray
+            Declinations of the randomly samples points in radians.
+
+        Notes
+        -----
+        This method checks how many test points are already stored in this
+        instance. `n_points` refers to the total number of test points
+        requested. Only if it exceeds the number of test points already stored,
+        new test points are created.
+        """
 
         n_done = len(self.test_points['ra'])
         n_needed = n_points - n_done
@@ -897,7 +1369,22 @@ class FieldGridTester:
 
     #--------------------------------------------------------------------------
     def _orientation(self, p, q0, q1):
-        # TODO: docstring
+        """Calculate the orientiation of a point relative to a line.
+
+        Parameters
+        ----------
+        p : np.ndarray
+            2D-coordinates of the point.
+        q0 : TYPE
+            2D-coordinates of the first point describing the line.
+        q1 : TYPE
+            2D-coordinates of the second point describing the line.
+
+        Returns
+        -------
+        sign : int
+            +1 or -1 depending on the orientation.
+        """
 
         sign = np.sign(
                 (q1[0] - q0[0]) * (p[1] - q0[1]) - (p[0] - q0[0]) \
@@ -907,7 +1394,24 @@ class FieldGridTester:
 
     #--------------------------------------------------------------------------
     def _crossing(self, p, q0, q1):
-        # TODO: docstring
+        """Check if  a horizontal line originating from point p towards the
+        right would cross the line spanned by points q0 and q1.
+
+        Parameters
+        ----------
+        p : np.ndarray
+            2D-coordinates of the point.
+        q0 : TYPE
+            2D-coordinates of the first point describing the line.
+        q1 : TYPE
+            2D-coordinates of the second point describing the line.
+
+        Returns
+        -------
+        cross : int
+            0 if it does cross. +1 or -1 if if crosses, depending on the
+            orientation.
+        """
 
         p_heq_q0 = q0[1] <= p[1]
         p_heq_q1 = q1[1] <= p[1]
@@ -924,7 +1428,20 @@ class FieldGridTester:
 
     #--------------------------------------------------------------------------
     def _inside_polygon(self, point, polygon):
-        # TODO: docstring
+        """Test if a point is located within a polygon.
+
+        Parameters
+        ----------
+        point : np.ndarray
+            2D-coordinates of the point.
+        polygon : list of np.ndarray
+            List of the 2D-coordinates of the points that span the polygon.
+
+        Returns
+        -------
+        is_inside : bool
+            True, if the point is located within the polygon. False, otherwise.
+        """
 
         polygon = np.array(polygon + [polygon[0]])
 
@@ -933,11 +1450,27 @@ class FieldGridTester:
         for q0, q1 in zip(polygon[0:-1], polygon[1:]):
             winding_number += self._crossing(point, q0, q1)
 
-        return winding_number > 0
+        is_inside = winding_number > 0
+
+        return is_inside
 
     #--------------------------------------------------------------------------
     def _summary_gaps(self, get=False):
-        # TODO: docstring
+        """Get results from the test for gaps, using the radec sampler.
+
+        Parameters
+        ----------
+        get : bool, optional
+            If True, return coordinates of the found gaps. Otherwise, return
+            None. In either case the method prints out the most basic
+            information. The default is False.
+
+        Returns
+        -------
+        gaps : dict or None
+            The dict contains the coordinates of the identified gaps, if
+            `get=True`. Otherwise, None is returned.
+        """
 
         i_gaps = np.nonzero(np.array(self.test_points['n_fields']) == 0)[0]
         n_gaps = i_gaps.shape[0]
@@ -954,7 +1487,22 @@ class FieldGridTester:
 
     #--------------------------------------------------------------------------
     def _summary_fractions(self, get=False):
-        # TODO: docstring
+        """Return results from the test with the spherical sampler.
+
+        Parameters
+        ----------
+        get : bool, optional
+            If True, returns the number counts of test points within gaps, a
+            single field, two fields, etc. Otherwise, returns None. In either
+            case the method prints out the most basic information. The default
+            is False.
+
+        Returns
+        -------
+        fractions : dict
+            The number counts of test points within gaps, a single field, two
+            fields, etc., if  `get=True`. Otherwise, None is returned.
+        """
 
         n_fields = np.array(self.test_points['n_fields'])
 
@@ -992,17 +1540,38 @@ class FieldGridTester:
 
     #--------------------------------------------------------------------------
     def test(self, n_points=0, points_ra=None, points_dec=None):
-        # TODO: docstring
+        """Run the grid test.
+
+        Parameters
+        ----------
+        n_points : int
+            Number of random samples. The default is 0.
+        points_ra : array-type, optional
+            Test point right ascensions. The default is None.
+        points_dec : array-type, optional
+            Test point declinations. The default is None.
+
+        Raises
+        ------
+        ValueError
+            If `points_ra` and `points_dec` are not of same length.
+            Raised if neither test points are provided through `points_ra` and
+            `points_dec` nor a number of test points is set through `n_points`.
+
+        Returns
+        -------
+        None
+        """
 
         # check input:
         if points_ra is not None and points_dec is not None:
+            if len(points_ra) != len(points_dec):
+                raise ValueError(
+                        "`points_ra` and `points_dec` need to be of same "
+                        "length.")
             self.test_points = {
                     'ra': [], 'dec': [], 'n_fields': [], 'field_ids': []}
             n_needed = len(points_ra)
-        elif n_points > 0 and self.sampler is None:
-            raise ValueError(
-                    "No sampler selected. A sampler needs to be selected at "\
-                    "instanciation of the FieldGridTester class.")
         elif n_points > 0:
             n_needed, points_ra, points_dec = self._sample_test_points(
                     n_points)
@@ -1028,8 +1597,8 @@ class FieldGridTester:
 
         # create initial field corners:
         corner_ras, corner_decs = self.grid._field_corners_rot(
-                self.grid.fov, tilt=self.grid.tilt, center_ra=0.,
-                center_dec=0.)
+                self.grid.fov, tilt=self.grid.tilt, center_ra=0,
+                center_dec=0)
         corner_ras[0] -= 2. * np.pi
         corner_ras[3] -= 2. * np.pi
         polygon = [[ra, dec] for ra, dec in zip(corner_ras, corner_decs)]
@@ -1075,17 +1644,40 @@ class FieldGridTester:
         self.test_points['n_fields'] += list(n_assoc_fields)
         self.test_points['field_ids'] += assoc_field_ids
 
-        return True
-
     #--------------------------------------------------------------------------
     def get_results(self):
-        # TODO: docstring
+        """Get test points and their field associations.
+
+        Returns
+        -------
+        self.test_points : dict
+            Test point coordinates, number of field associations and IDs of
+            associated fields.
+        """
 
         return self.test_points
 
     #--------------------------------------------------------------------------
     def summary(self, get=False):
-        # TODO: docstring
+        """Get summary of the test.
+
+        Parameters
+        ----------
+        get : bool, optional
+            If True, return the full test results. The dictionary structure
+            depends on the test, i.e. on the sampler selected at the class
+            initialization. If False, None is returned. In either case the
+            main results are printed out. The default is False.
+
+        Returns
+        -------
+        dict or None
+            Test results as dictionary, if `get=True`.
+            If the sampler was 'sperical', the dict contains the number counts
+            of test points within gaps, a single field, two fields, etc.
+            If the sampler was 'radec', ` the dict contains the coordinates of
+            the identified gaps.
+        """
 
         if self.sampler == 'spherical':
             return self._summary_fractions(get=get)
