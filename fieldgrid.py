@@ -180,10 +180,47 @@ class FieldGrid(metaclass=ABCMeta):
 
     #--------------------------------------------------------------------------
     def __init__(
-            self, fov, overlap_ns=0., overlap_ew=0., tilt=0., b_lim=0.,
+            self, fov, overlap_ns=0., overlap_ew=0., tilt=0.,
             dec_lim_north=np.pi/2, dec_lim_south=-np.pi/2, gal_lat_lim=0,
             gal_lat_lim_strict=False, verbose=0):
-        # TODO: docstring
+        """Create FieldGrid instance.
+
+        Parameters
+        ----------
+        fov : float
+            Field of view side length in radian.
+        overlap_ns : float, optional
+            Overlap between neighboring fields in North-South direction in
+            radian. The default is 0..
+        overlap_ew : float, optional
+            Overlap between neighboring fields in East-West direction in
+            radian. The default is 0..
+        tilt : float, optional
+            Tilt of the field of view in radian. The default is 0..
+        dec_lim_north : float, optional
+            Northern declination limit in radian. Fields North of this limit
+            are excluded. The default is np.pi/2.
+        dec_lim_south : float, optional
+            Southern declination limit in radian. Fields South of this limit
+            are excluded. The default is -np.pi/2.
+        gal_lat_lim : float, optional
+            Galactic latitude limit in radian. If the limit is X, fields with
+            Galactic latitude in [-X, X] are excluded. The default is 0..
+        gal_lat_lim_strict : TYPE, optional
+            DESCRIPTION. The default is False.
+        verbose : TYPE, optional
+            DESCRIPTION. The default is 0.
+
+        Raises
+        ------
+        ValueError
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        """
 
         # check input:
         if overlap_ns >= fov:
@@ -199,7 +236,6 @@ class FieldGrid(metaclass=ABCMeta):
         self.overlap_ns = overlap_ns
         self.overlap_ew = overlap_ew
         self.tilt = tilt
-        self.b_lim = b_lim
         self.dec_lim_north = dec_lim_north
         self.dec_lim_south = dec_lim_south
         self.gal_lat_lim = gal_lat_lim
@@ -413,16 +449,16 @@ class FieldGridIsoLat(FieldGrid):
 
     #--------------------------------------------------------------------------
     def __init__(
-            self, fov, overlap_ns=0., overlap_ew=0., tilt=0., b_lim=0.,
+            self, fov, overlap_ns=0., overlap_ew=0., tilt=0.,
             dec_lim_north=np.pi/2, dec_lim_south=-np.pi/2, gal_lat_lim=0.,
             gal_lat_lim_strict=False, verbose=0):
         # TODO: docstring
 
         super(FieldGridIsoLat, self).__init__(
                 fov, overlap_ns=overlap_ns, overlap_ew=overlap_ew, tilt=tilt,
-                b_lim=b_lim, dec_lim_north=dec_lim_north,
-                dec_lim_south=dec_lim_south, gal_lat_lim=gal_lat_lim,
-                gal_lat_lim_strict=gal_lat_lim_strict, verbose=verbose)
+                dec_lim_north=dec_lim_north, dec_lim_south=dec_lim_south,
+                gal_lat_lim=gal_lat_lim, gal_lat_lim_strict=gal_lat_lim_strict,
+                verbose=verbose)
 
     #--------------------------------------------------------------------------
     def _split_declination(self):
@@ -551,7 +587,7 @@ class FieldGridGrtCirc(FieldGrid):
 
     #--------------------------------------------------------------------------
     def __init__(
-            self, fov, overlap_ns=0., overlap_ew=0., tilt=0., b_lim=0.,
+            self, fov, overlap_ns=0., overlap_ew=0., tilt=0.,
             dec_lim_north=np.pi/2, dec_lim_south=-np.pi/2,
             dec_lim_strict=False, gal_lat_lim=0., gal_lat_lim_strict=False,
             frame_rot_ra=0., frame_rot_dec=0., verbose=0):
@@ -563,9 +599,9 @@ class FieldGridGrtCirc(FieldGrid):
 
         super(FieldGridGrtCirc, self).__init__(
                 fov, overlap_ns=overlap_ns, overlap_ew=overlap_ew, tilt=tilt,
-                b_lim=b_lim, dec_lim_north=dec_lim_north,
-                dec_lim_south=dec_lim_south, gal_lat_lim=gal_lat_lim,
-                gal_lat_lim_strict=gal_lat_lim_strict, verbose=verbose)
+                dec_lim_north=dec_lim_north, dec_lim_south=dec_lim_south,
+                gal_lat_lim=gal_lat_lim, gal_lat_lim_strict=gal_lat_lim_strict,
+                verbose=verbose)
 
     #--------------------------------------------------------------------------
     def _split_declination(self):
