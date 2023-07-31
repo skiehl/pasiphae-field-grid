@@ -180,13 +180,15 @@ class FieldGrid(metaclass=ABCMeta):
 
     #--------------------------------------------------------------------------
     def __init__(
-            self, fov, overlap=0., tilt=0., b_lim=0., dec_lim_north=np.pi/2,
-            dec_lim_south=-np.pi/2, gal_lat_lim=0, gal_lat_lim_strict=False,
-            verbose=0):
+            self, fov, overlap_ns=0., overlap_ew=0., tilt=0., b_lim=0.,
+            dec_lim_north=np.pi/2, dec_lim_south=-np.pi/2, gal_lat_lim=0,
+            gal_lat_lim_strict=False, verbose=0):
         # TODO: docstring
 
         # check input:
-        if overlap >= fov:
+        if overlap_ns >= fov:
+            raise ValueError("Overlap must be smaller than field of view.")
+        if overlap_ew >= fov:
             raise ValueError("Overlap must be smaller than field of view.")
         if dec_lim_north > np.pi / 2.:
             raise ValueError("Northern declination limit cannot exceed pi/2.")
@@ -194,7 +196,8 @@ class FieldGrid(metaclass=ABCMeta):
             raise ValueError("Southern declination limit cannot exceed -pi/2.")
 
         self.fov = fov
-        self.overlap = overlap
+        self.overlap_ns = overlap_ns
+        self.overlap_ew = overlap_ew
         self.tilt = tilt
         self.b_lim = b_lim
         self.dec_lim_north = dec_lim_north
@@ -410,24 +413,24 @@ class FieldGridIsoLat(FieldGrid):
 
     #--------------------------------------------------------------------------
     def __init__(
-            self, fov, overlap, tilt=0., b_lim=0., dec_lim_north=np.pi/2,
-            dec_lim_south=-np.pi/2, gal_lat_lim=0., gal_lat_lim_strict=False,
-            verbose=0):
+            self, fov, overlap_ns=0., overlap_ew=0., tilt=0., b_lim=0.,
+            dec_lim_north=np.pi/2, dec_lim_south=-np.pi/2, gal_lat_lim=0.,
+            gal_lat_lim_strict=False, verbose=0):
         # TODO: docstring
 
         super(FieldGridIsoLat, self).__init__(
-                fov, overlap, tilt=tilt, b_lim=b_lim,
-                dec_lim_north=dec_lim_north, dec_lim_south=dec_lim_south,
-                gal_lat_lim=gal_lat_lim, gal_lat_lim_strict=gal_lat_lim_strict,
-                verbose=verbose)
+                fov, overlap_ns=overlap_ns, overlap_ew=overlap_ew, tilt=tilt,
+                b_lim=b_lim, dec_lim_north=dec_lim_north,
+                dec_lim_south=dec_lim_south, gal_lat_lim=gal_lat_lim,
+                gal_lat_lim_strict=gal_lat_lim_strict, verbose=verbose)
 
     #--------------------------------------------------------------------------
     def _split_declination(self):
         # TODO: docstring
 
         dec_range = self.dec_lim_north - self.dec_lim_south
-        field_range = self.fov - self.overlap
-        n = (dec_range - self.overlap) / field_range
+        field_range = self.fov - self.overlap_ns
+        n = (dec_range - self.overlap_ns) / field_range
 
         # round when n (almost) is an interger number:
         if np.isclose(np.mod(n, 1), 0):
@@ -441,7 +444,7 @@ class FieldGridIsoLat(FieldGrid):
             print(f'    Number of declination circles: {n}')
 
         # calculate declinations of isolatitudinal rings:
-        dec_range_real = n * field_range + self.overlap
+        dec_range_real = n * field_range + self.overlap_ns
         offset = (dec_range_real - dec_range) / 2.
         dec0 = self.dec_lim_south + self.fov / 2. - offset
         dec1 = dec0 + field_range * (n - 1)
@@ -505,7 +508,7 @@ class FieldGridIsoLat(FieldGrid):
         # otherwise split isolatitudinal ring into n fields:
         else:
             n = int(np.ceil(
-                    2 * np.pi / (self.fov - self.overlap)) * np.cos(dec))
+                    2 * np.pi / (self.fov - self.overlap_ew)) * np.cos(dec))
 
             if n < n_min:
                 n = n_min
@@ -548,10 +551,10 @@ class FieldGridGrtCirc(FieldGrid):
 
     #--------------------------------------------------------------------------
     def __init__(
-            self, fov, overlap, tilt=0., b_lim=0., dec_lim_north=np.pi/2,
-            dec_lim_south=-np.pi/2, dec_lim_strict=False, gal_lat_lim=0.,
-            gal_lat_lim_strict=False, frame_rot_ra=0., frame_rot_dec=0.,
-            verbose=0):
+            self, fov, overlap_ns=0., overlap_ew=0., tilt=0., b_lim=0.,
+            dec_lim_north=np.pi/2, dec_lim_south=-np.pi/2,
+            dec_lim_strict=False, gal_lat_lim=0., gal_lat_lim_strict=False,
+            frame_rot_ra=0., frame_rot_dec=0., verbose=0):
         # TODO: docstring
 
         self.dec_lim_strict = dec_lim_strict
@@ -559,18 +562,18 @@ class FieldGridGrtCirc(FieldGrid):
         self.frame_rot_dec = np.mod(frame_rot_dec, np.pi)
 
         super(FieldGridGrtCirc, self).__init__(
-                fov, overlap, tilt=tilt, b_lim=b_lim,
-                dec_lim_north=dec_lim_north, dec_lim_south=dec_lim_south,
-                gal_lat_lim=gal_lat_lim, gal_lat_lim_strict=gal_lat_lim_strict,
-                verbose=verbose)
+                fov, overlap_ns=overlap_ns, overlap_ew=overlap_ew, tilt=tilt,
+                b_lim=b_lim, dec_lim_north=dec_lim_north,
+                dec_lim_south=dec_lim_south, gal_lat_lim=gal_lat_lim,
+                gal_lat_lim_strict=gal_lat_lim_strict, verbose=verbose)
 
     #--------------------------------------------------------------------------
     def _split_declination(self):
         # TODO: docstring
 
-        field_range = self.fov - self.overlap
-        n = int(np.ceil((np.pi - self.overlap) / field_range))
-        offset = (n * field_range + self.overlap - np.pi) / 2.
+        field_range = self.fov - self.overlap_ns
+        n = int(np.ceil((np.pi - self.overlap_ns) / field_range))
+        offset = (n * field_range + self.overlap_ns - np.pi) / 2.
         dec0 = -np.pi / 2. + self.fov / 2. - offset
         dec1 = +np.pi / 2. - self.fov / 2. + offset
         decs = np.linspace(dec0, dec1, n)
@@ -584,7 +587,7 @@ class FieldGridGrtCirc(FieldGrid):
     def _split_ra(self):
         # TODO: docstring
 
-        n = int(np.ceil(2 * np.pi / (self.fov - self.overlap)))
+        n = int(np.ceil(2 * np.pi / (self.fov - self.overlap_ew)))
         ras = np.linspace(0., 2.*np.pi, n+1)[:-1]
 
         if self.verbose > 1:
