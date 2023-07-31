@@ -249,14 +249,14 @@ class FieldGridVisualizer():
                     linewidth=0.5)
 
     #--------------------------------------------------------------------------
-    def _plot_galactic_plane_orthographic(self, ax, b_lim, n=100):
+    def _plot_galactic_plane_orthographic(self, ax, gal_lat_lim, n=100):
         """Plot the galactic plane latitude limits.
 
         Parameters
         ----------
         matplotlib.axes.Axes
            The Axes instance to draw to.
-        b_lim : float
+        gal_lat_lim : float
             Galactic latitude limit in radians. Will only be plotted if
             different from zero.
         n : int, optional
@@ -267,28 +267,28 @@ class FieldGridVisualizer():
         None
         """
 
-        if not b_lim:
+        if not gal_lat_lim:
             return None
 
-        b_lim *= 180. / np.pi
+        gal_lat_lim *= 180. / np.pi
         l = np.linspace(0, 360., n)
 
         for sign in [-1, 1]:
-            b = b_lim * sign * np.ones(l.shape[0])
+            b = gal_lat_lim * sign * np.ones(l.shape[0])
             gcoord = SkyCoord(l=l, b=b, unit='deg', frame='galactic')
             coord = gcoord.fk5
             ax.plot(coord.ra.deg, coord.dec.deg, marker='None', color='orange',
                     linestyle='-', transform=ccrs.PlateCarree())
 
     #--------------------------------------------------------------------------
-    def _plot_galactic_plane_mollweide(self, ax, b_lim, n=100):
+    def _plot_galactic_plane_mollweide(self, ax, gal_lat_lim, n=100):
         """Plot the galactic plane latitude limits.
 
         Parameters
         ----------
         matplotlib.axes.Axes
            The Axes instance to draw to.
-        b_lim : float
+        gal_lat_lim : float
             Galactic latitude limit in radians. Will only be plotted if
             different from zero.
         n : int, optional
@@ -299,15 +299,15 @@ class FieldGridVisualizer():
         None
         """
 
-        if not b_lim:
+        if not gal_lat_lim:
             return None
 
-        b_lim *= 180. / np.pi
+        gal_lat_lim *= 180. / np.pi
         l = np.linspace(0, 360., n+1)
         l = np.r_[l, l[1]]
 
         for sign in [-1, 1]:
-            b = sign * b_lim * np.ones(l.shape[0])
+            b = sign * gal_lat_lim * np.ones(l.shape[0])
             gcoord = SkyCoord(l=l, b=b, unit='deg', frame='galactic')
             coord = gcoord.fk5
             ra = np.where(
@@ -324,8 +324,8 @@ class FieldGridVisualizer():
 
     #--------------------------------------------------------------------------
     def orthographic(
-            self, *grids, b_lim=0, central_longitude=25., central_latitude=45.,
-            outlines=False, ax=None, **kwargs):
+            self, *grids, gal_lat_lim=0, central_longitude=25.,
+            central_latitude=45., outlines=False, ax=None, **kwargs):
         # TODO: docstring
         """Orthographic plot of fields.
 
@@ -337,7 +337,7 @@ class FieldGridVisualizer():
             be plotted in different colors. If fields were provided at class
             instanciation, they do not have to be provided here. If provided
             here, these fields will overwrite any fields added before.
-        b_lim : float, optional
+        gal_lat_lim : float, optional
             Galactic latitude limit in radians. Will only be plotted if
             different from zero. The default is 0.
         central_longitude : float
@@ -375,7 +375,7 @@ class FieldGridVisualizer():
                 ax, central_longitude, central_latitude)
 
         # plot Galactic plane:
-        self._plot_galactic_plane_orthographic(ax, b_lim)
+        self._plot_galactic_plane_orthographic(ax, gal_lat_lim)
 
         # warn when no grids are provided:
         if not len(self.grids):
@@ -403,7 +403,7 @@ class FieldGridVisualizer():
         return fig, ax
 
     #--------------------------------------------------------------------------
-    def mollweide(self, *grids, b_lim=0, outlines=False, ax=None, **kwargs):
+    def mollweide(self, *grids, gal_lat_lim=0, outlines=False, ax=None, **kwargs):
         """Mollweide plot of fields.
 
         Parameters
@@ -414,7 +414,7 @@ class FieldGridVisualizer():
             be plotted in different colors. If fields were provided at class
             instanciation, they do not have to be provided here. If provided
             here, these fields will overwrite any fields added before.
-        b_lim : float, optional
+        gal_lat_lim : float, optional
             Galactic latitude limit in radians. Will only be plotted if
             different from zero. The default is 0.
         outlines : bool, optional
@@ -445,7 +445,7 @@ class FieldGridVisualizer():
         fig, ax = self._create_mollweide_figure(ax)
 
         # plot Galactic plane:
-        self._plot_galactic_plane_mollweide(ax, b_lim)
+        self._plot_galactic_plane_mollweide(ax, gal_lat_lim)
 
         # warn when no grids are provided:
         if not len(self.grids):
