@@ -1,26 +1,33 @@
 # pasiphae-field-grid
-Developing the field grid for the Pasiphae survey.
 
-## Directories and files
+## About
+The [Pasiphae project](http://pasiphae.science/) aims to map, with
+unprecedented accuracy, the polarization of millions of stars at areas of the
+sky away from the Galactic plane, in both the Northern and the Southern
+hemispheres. New instruments, calibration and analysis methods, and dedicated
+software are currently under development.
 
-### Jupyter notebooks
+The pasiphae-field-grid package provides classes to separate the sky into
+fields. Different layouts optionally allow the user to set declination limits
+and to exclude the Galactic plane up to a specified Galactic latitude limit.
 
-* Develop_FieldGrid.ipynb: Development of the field grid.
-* Presentation_FieldGrid.ipynb: Presentation of the first field grid,
-    2023-04-24.
-* Test_FieldGrid.ipynb: Systematic tests of the grids for gaps and overlap.
-* Test_FieldOverlap.ipynb: Cross-checks of the overlapping regions in the grid
-    with Gaia sources.
+## Modules
 
-### Scripts
-
-* fieldgrid.py: The main script developed and tested in this repository.
-* visualizations.py: Module that provides classes to visualize the field grid
-    layouts. This module is copied from the `pasiphae-survey-planner`
-    repository and is further developed there.
-
-### Directories
-
-* gaia: Tables of Gaia sources used in the `Test_FieldOverlap.ipynb`.
-* gridtests: Pickles and sqlite3 files stored from during the tests performed
-    in `Test_FieldGrid.ipynb` and `Test_FieldOverlap.ipynb`.
+* `fieldgrid.py`: Classes to separate the sky into different field grids.
+    * `FieldGrid` class: Parent class that provides methods shared by the
+      following two field grid classes and that defines some abstract methods.
+    * `FieldGridIsoLat` class: Devide the sky into fields that fill up rings
+      of constant latitudes. The number of fields per ring is automatically
+      determined to ensure the least amount of fields without having any
+      observational gaps on the sky. This is the basic field grid layout used
+      by the Pasiphae survey.
+    * `FieldGridGrtCirc` class: Devide the sky into fields along great cicles.
+      The number of great circles and the number of fields along each circle is
+      automatically chosen based on the field of view. This is an inefficient
+      approach to split the sky into fields, because it results in strong
+      overlap closer to the poles.
+    * `FieldGridTester` class: provides methods to test how strongly
+      neighboring fields overlap and whether gaps exist in the field grid.
+* `visualizations.py`: Class to visualize the field grid layouts.
+    * `FieldGridVisualizer` class: Visualize the field grid in orthographic or
+      Mollweide projection.
