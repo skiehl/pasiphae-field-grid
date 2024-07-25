@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Visualizations for the Pasiphae survey planner.
+"""Visualizations for the Pasiphae field grid.
 """
 
 from astropy.coordinates import SkyCoord
 import cartopy.crs as ccrs
-from matplotlib import colors
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
 import numpy as np
