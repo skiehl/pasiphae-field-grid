@@ -9,6 +9,8 @@ import json
 import numpy as np
 from textwrap import dedent
 
+from utilities import inside_polygon
+
 __author__ = "Sebastian Kiehlmann"
 __credits__ = ["Sebastian Kiehlmann"]
 __license__ = "BSD3"
@@ -1563,93 +1565,6 @@ class FieldGridTester:
         return n_needed, points_ra, points_dec
 
     #--------------------------------------------------------------------------
-    def _orientation(self, p, q0, q1):
-        """Calculate the orientiation of a point relative to a line.
-
-        Parameters
-        ----------
-        p : np.ndarray
-            2D-coordinates of the point.
-        q0 : TYPE
-            2D-coordinates of the first point describing the line.
-        q1 : TYPE
-            2D-coordinates of the second point describing the line.
-
-        Returns
-        -------
-        sign : int
-            +1 or -1 depending on the orientation.
-        """
-
-        sign = np.sign(
-                (q1[0] - q0[0]) * (p[1] - q0[1]) - (p[0] - q0[0]) \
-                * (q1[1] - q0[1]))
-
-        return sign
-
-    #--------------------------------------------------------------------------
-    def _crossing(self, p, q0, q1):
-        """Check if  a horizontal line originating from point p towards the
-        right would cross the line spanned by points q0 and q1.
-
-        Parameters
-        ----------
-        p : np.ndarray
-            2D-coordinates of the point.
-        q0 : TYPE
-            2D-coordinates of the first point describing the line.
-        q1 : TYPE
-            2D-coordinates of the second point describing the line.
-
-        Returns
-        -------
-        cross : int
-            0 if it does cross. +1 or -1 if if crosses, depending on the
-            orientation.
-        """
-
-        p_heq_q0 = q0[1] <= p[1]
-        p_heq_q1 = q1[1] <= p[1]
-        p_left = self._orientation(p, q0, q1)
-
-        if p_heq_q0 and ~p_heq_q1 and p_left > 0:
-            cross = +1
-        elif ~p_heq_q0 and p_heq_q1 and p_left < 0:
-            cross = -1
-        else:
-            cross = 0
-
-        return cross
-
-    #--------------------------------------------------------------------------
-    def _inside_polygon(self, point, polygon):
-        """Test if a point is located within a polygon.
-
-        Parameters
-        ----------
-        point : np.ndarray
-            2D-coordinates of the point.
-        polygon : list of np.ndarray
-            List of the 2D-coordinates of the points that span the polygon.
-
-        Returns
-        -------
-        is_inside : bool
-            True, if the point is located within the polygon. False, otherwise.
-        """
-
-        polygon = np.array(polygon + [polygon[0]])
-
-        winding_number = 0
-
-        for q0, q1 in zip(polygon[0:-1], polygon[1:]):
-            winding_number += self._crossing(point, q0, q1)
-
-        is_inside = winding_number > 0
-
-        return is_inside
-
-    #--------------------------------------------------------------------------
     def _summary_gaps(self, get=False):
         """Get results from the test for gaps, using the radec sampler.
 
@@ -1824,7 +1739,7 @@ class FieldGridTester:
             # iterate through close, rotated points:
             for ra, dec, j in zip(points_ra_rot, points_dec_rot, i_close):
                 # check if point is in field:
-                inside = self._inside_polygon((ra, dec), polygon)
+                inside = inside_polygon((ra, dec), polygon)
 
                 # store results:
                 if inside:
