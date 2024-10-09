@@ -3,13 +3,13 @@
 """
 
 from abc import  ABCMeta, abstractmethod
-from astropy.coordinates import Angle, SkyCoord
-from astropy import units as u
+from astropy.coordinates import SkyCoord
 import json
 import numpy as np
 from textwrap import dedent
 
-from utilities import inside_polygon
+from utilities import inside_polygon, cart_to_sphere, sphere_to_cart, \
+        rot_tilt, rot_dec, rot_ra
 
 __author__ = "Sebastian Kiehlmann"
 __credits__ = ["Sebastian Kiehlmann"]
@@ -18,160 +18,6 @@ __version__ = "0.1"
 __maintainer__ = "Sebastian Kiehlmann"
 __email__ = "skiehlmann@mail.de"
 __status__ = "Production"
-
-#==============================================================================
-# FUNCTIONS
-#==============================================================================
-
-def cart_to_sphere(x, y, z):
-    """Transform cartesian to spherical coordinates.
-
-    Parameters
-    ----------
-    x : np.ndarray or float
-        x-coordinates to transform.
-    y : np.ndarray or float
-        y-coordinates to transform.
-    z : np.ndarray or float
-        z-coordinates to transform.
-
-    Returns
-    -------
-    ra : np.ndarray or float
-        Right ascension in radians.
-    dec : np.ndarray or float
-        Declination in radians.
-    """
-
-    r = np.sqrt(x**2 + y**2 + z**2)
-    za = np.arccos(z / r)
-    dec = np.pi / 2. - za
-    ra = np.arctan2(y, x)
-    ra = np.mod(ra, 2*np.pi)
-
-    return ra, dec
-
-#--------------------------------------------------------------------------
-def sphere_to_cart(ra, dec):
-    """Transform spherical to cartesian coordinates.
-
-    Parameters
-    ----------
-    ra : np.ndarray or float
-        Right ascension(s) in radians.
-    dec : np.ndarray or float
-        Declination(s) in radians.
-
-    Returns
-    -------
-    x : np.ndarray or float
-        x-coordinate(s).
-    y : np.ndarray or float
-        y-coordinate(s).
-    z : np.ndarray or float
-        z-coordinate(s).
-    """
-
-    za = np.pi / 2. - dec
-    x = np.sin(za) * np.cos(ra)
-    y = np.sin(za) * np.sin(ra)
-    z = np.cos(za)
-
-    return x, y, z
-
-#--------------------------------------------------------------------------
-def rot_tilt(x, y, z, tilt):
-    """Rotate around x-axis by tilt angle.
-
-    Parameters
-    ----------
-    x : np.ndarray or float
-        x-coordinates to rotate.
-    y : np.ndarray or float
-        y-coordinates to rotate.
-    z : np.ndarray or float
-        z-coordinates to rotate.
-    tilt : float
-        Angle in radians by which the coordinates are rotated.
-
-    Returns
-    -------
-    x_rot : np.ndarray or float
-        Rotated x-coordinates.
-    y_rot : np.ndarray or float
-        Rotated y-coordinates.
-    z_rot : np.ndarray or float
-        Rotated z-coordinates.
-    """
-
-    x_rot = x
-    y_rot = y * np.cos(tilt) - z * np.sin(tilt)
-    z_rot = y * np.sin(tilt) + z * np.cos(tilt)
-
-    return x_rot, y_rot, z_rot
-
-#--------------------------------------------------------------------------
-def rot_dec(x, y, z, dec):
-    """Rotate around y-axis by declination angle.
-
-    Parameters
-    ----------
-    x : np.ndarray or float
-        x-coordinates to rotate.
-    y : np.ndarray or float
-        y-coordinates to rotate.
-    z : np.ndarray or float
-        z-coordinates to rotate.
-    dec : float
-        Angle in radians by which the coordinates are rotated.
-
-    Returns
-    -------
-    x_rot : np.ndarray or float
-        Rotated x-coordinates.
-    y_rot : np.ndarray or float
-        Rotated y-coordinates.
-    z_rot : np.ndarray or float
-        Rotated z-coordinates.
-    """
-
-    dec = -dec
-    x_rot = x * np.cos(dec) + z * np.sin(dec)
-    y_rot = y
-    z_rot = -x * np.sin(dec) + z * np.cos(dec)
-
-    return x_rot, y_rot, z_rot
-
-#--------------------------------------------------------------------------
-def rot_ra(x, y, z, ra):
-    """Rotate around z-axis by right ascension angle.
-
-    Parameters
-    ----------
-    x : np.ndarray or float
-        x-coordinates to rotate.
-    y : np.ndarray or float
-        y-coordinates to rotate.
-    z : np.ndarray or float
-        z-coordinates to rotate.
-    ra : float
-        Angle in radians by which the coordinates are rotated.
-
-    Returns
-    -------
-    x_rot : np.ndarray or float
-        Rotated x-coordinates.
-    y_rot : np.ndarray or float
-        Rotated y-coordinates.
-    z_rot : np.ndarray or float
-        Rotated z-coordinates.
-    """
-
-    x_rot = x * np.cos(ra) - y * np.sin(ra)
-    y_rot = x * np.sin(ra) + y * np.cos(ra)
-    z_rot = z
-
-    return x_rot, y_rot, z_rot
 
 #==============================================================================
 # CLASSES
@@ -507,11 +353,11 @@ class FieldGrid(metaclass=ABCMeta):
         None
         """
 
-        print(f'Loading grid parameters from {filename}..')
-
         with open(filename, mode='r') as f:
             params = json.load(f)
             self.set_params(**params)
+
+        print(f'Grid parameters loaded from {filename}.')
 
     #--------------------------------------------------------------------------
     def in_galactic_plane(
