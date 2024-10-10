@@ -8,8 +8,7 @@ import json
 import numpy as np
 from textwrap import dedent
 
-from utilities import inside_polygon, cart_to_sphere, sphere_to_cart, \
-        rot_tilt, rot_dec, rot_ra
+from utilities import close_to_edge, inside_polygon, rotate_frame
 
 __author__ = "Sebastian Kiehlmann"
 __credits__ = ["Sebastian Kiehlmann"]
@@ -189,3 +188,48 @@ class GuideStarWalopS(GuideStarSelector):
         self.limit = Angle(limit*scale, unit='rad')
 
     #--------------------------------------------------------------------------
+    def select(self, field_ra, field_dec):
+        # TODO
+
+        # select closest stars
+        radius = self.circle_radius - self.limit
+        circle_center = SkyCoord(
+                field_ra + self.circle_offset.rad,
+                field_dec + self.circle_offset.rad,
+                unit='rad')
+        sel_circle = self.stars_coord.separation(circle_center) < radius
+        i_circle = np.nonzero(sel_circle)[0]
+        candidates_coord = self.stars_coord[sel_circle]
+
+        # rotate coordinate frame:
+        field_center = SkyCoord(field_ra, field_dec, unit='rad')
+        ra_rot, dec_rot = rotate_frame(
+                candidates_coord.ra.rad, candidates_coord.dec.rad, field_center
+                )
+        n = ra_rot.shape[0]
+
+        # select candidates within guide area:
+        sel_guide = np.zeros(n, dtype=bool)
+
+        for i, point in enumerate(zip(ra_rot, dec_rot)):
+            sel_guide[i] = inside_polygon(point, self.guide_area)
+
+        i_guide = i_circle[sel_guide]
+        candidates_coord = candidates_coord[sel_guide]
+        n = i_guide.shape[0]
+
+        # select candidates far enough from the guide area edges:
+        sel_edge = np.zeros(n, dtype=bool)
+
+        for i, point in enumerate(zip(
+                    candidates_coord.ra.rad, candidates_coord.dec.rad)):
+            sel_edge[i] = close_to_edge(
+                    point, self.guide_area, self.limit.rad)
+
+        i_edge = i_guide[sel_edge]
+        i_guide = i_guide[~sel_edge]
+        candidates_coord = candidates_coord[~sel_edge]
+
+        return i_guide, i_edge, i_circle
+
+#==============================================================================

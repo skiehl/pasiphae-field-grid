@@ -365,3 +365,33 @@ def rot_ra(x, y, z, ra):
     return x_rot, y_rot, z_rot
 
 #==============================================================================
+
+def rotate_frame(ra, dec, field_center):
+    """Rotate coordinate frame such that field center becomes (0, 0).
+
+    Parameters
+    ----------
+    ra : np.ndarray or float
+        Right ascension(s) in radians.
+    dec : np.ndarray or float
+        Declination(s) in radians.
+    field_center : astropy.coordinates.SkyCoord
+        Coordinates of the field center.
+
+    Returns
+    -------
+    ra_rot : numpy.array
+        Right ascensions in the rotated frame.
+    dec_rot : numpy.array
+        Declinations in the rotated frame.
+    """
+
+    x, y, z = sphere_to_cart(ra, dec)
+    x, y, z = rot_ra(x, y, z, -field_center.ra.rad)
+    x, y, z = rot_dec(x, y, z, -field_center.dec.rad)
+    ra_rot, dec_rot = cart_to_sphere(x, y, z)
+    ra_rot = np.where(ra_rot > np.pi, ra_rot-2*np.pi, ra_rot)
+
+    return ra_rot, dec_rot
+
+#==============================================================================
