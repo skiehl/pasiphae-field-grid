@@ -5,6 +5,7 @@
 from abc import  ABCMeta, abstractmethod
 from astropy.coordinates import Angle, SkyCoord
 import json
+import matplotlib.pyplot as plt
 import numpy as np
 from textwrap import dedent
 
@@ -215,21 +216,76 @@ class GuideStarWalopS(GuideStarSelector):
             sel_guide[i] = inside_polygon(point, self.guide_area)
 
         i_guide = i_circle[sel_guide]
-        candidates_coord = candidates_coord[sel_guide]
         n = i_guide.shape[0]
 
         # select candidates far enough from the guide area edges:
         sel_edge = np.zeros(n, dtype=bool)
 
-        for i, point in enumerate(zip(
-                    candidates_coord.ra.rad, candidates_coord.dec.rad)):
+        for i, point in enumerate(zip(ra_rot[sel_guide], dec_rot[sel_guide])):
             sel_edge[i] = close_to_edge(
                     point, self.guide_area, self.limit.rad)
 
-        i_edge = i_guide[sel_edge]
         i_guide = i_guide[~sel_edge]
-        candidates_coord = candidates_coord[~sel_edge]
 
-        return i_guide, i_edge, i_circle
+        coord_rot_circle = SkyCoord(ra_rot, dec_rot, unit='rad')
+        coord_rot_edge = coord_rot_circle[sel_guide][sel_edge]
+        coord_rot_guide = coord_rot_circle[sel_guide][~sel_edge]
+
+        return i_guide, coord_rot_guide, coord_rot_edge, coord_rot_circle
+
+    #--------------------------------------------------------------------------
+    def visualize_selection(
+            self, coord_rot_guide, coord_rot_edge, coord_rot_circle):
+        # TODO
+
+        # plot instrument field:
+        offset = self.circle_offset.arcmin
+        radius = self.circle_radius.arcmin
+        circle = plt.Circle(
+                [offset]*2, radius, fill=False, color='k', linestyle='-')
+        plt.gca().add_artist(circle)
+        plt.plot(offset, offset, marker='+', ms=10, color='k')
+
+        # plot science field:
+        field_size = self.field_size.arcmin
+        rectangle = plt.Rectangle(
+                (-field_size/2, -field_size/2), field_size, field_size,
+                fill=False, color='0.5', linestyle='-')
+        plt.gca().add_artist(rectangle)
+        plt.plot(0, 0, marker='+', ms=10, color='0.5')
+
+        # plot guide area:
+        guide_area = self.guide_area.arcmin
+        for ((x0, y0), (x1, y1)) in zip(
+                    guide_area, np.r_[guide_area[1:], [guide_area[0]]]):
+            plt.plot([x0, x1], [y0, y1], color='tab:orange', linestyle='-')
+
+        # plot stars in instrument area:
+        ra = coord_rot_circle.ra.arcmin
+        ra = np.where(ra>180*60, ra-360*60, ra)
+        plt.plot(
+                ra, coord_rot_circle.dec.arcmin,
+                marker='o', linestyle='None', color='tab:blue')
+
+        # plot stars close to edge:
+        ra = coord_rot_edge.ra.arcmin
+        ra = np.where(ra>180*60, ra-360*60, ra)
+        plt.plot(
+                ra, coord_rot_edge.dec.arcmin,
+                marker='o', linestyle='None', color='tab:brown')
+
+        # plot guide stars:
+        ra = coord_rot_guide.ra.arcmin
+        ra = np.where(ra>180*60, ra-360*60, ra)
+        plt.plot(
+                ra, coord_rot_guide.dec.arcmin,
+                marker='o', linestyle='None', color='tab:orange')
+
+        # edit figure:
+        plt.gca().set_aspect(1)
+        xymin = offset - radius * 1.1
+        xymax = offset + radius * 1.1
+        plt.xlim(xymin, xymax)
+        plt.ylim(xymin, xymax)
 
 #==============================================================================
