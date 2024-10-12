@@ -189,8 +189,36 @@ class GuideStarWalopS(GuideStarSelector):
         self.limit = Angle(limit*scale, unit='rad')
 
     #--------------------------------------------------------------------------
-    def select(self, field_ra, field_dec):
-        # TODO
+    def _select(self, field_ra, field_dec, return_coord=False):
+        """Select guide stars for one field.
+
+        Parameters
+        ----------
+        field_ra : float
+            Field center right ascension in radians.
+        field_dec : float
+            Field center declination in radians.
+        return_coord : bool, optional
+            If True, coordinates of the selected guide stars, of stars too
+            close to the edge of the guider area, and stars within the
+            instrument area are returned in addition to the indices of the
+            selected stars. Otherwise, only the indices of the selected stars
+            are returned.
+
+        Returns
+        -------
+        i_guide : numpy.ndarray
+            Indices of the stars in the guide area.
+        coord_rot_guide : astropy.coordinates.SkyCoord
+            Coordinates of the selected guide stars. Only returned if
+            `return_coord=True`.
+        coord_rot_edge : astropy.coordinates.SkyCoord
+            Coordinates of the stars in the guide area, but too close to the
+            edge. Only returned if `return_coord=True`.
+        coord_rot_circle : astropy.coordinates.SkyCoord
+            Coordinates of the stars in the instrument area. Only returned if
+            `return_coord=True`.
+        """
 
         # select closest stars
         radius = self.circle_radius - self.limit
@@ -227,16 +255,70 @@ class GuideStarWalopS(GuideStarSelector):
 
         i_guide = i_guide[~sel_edge]
 
-        coord_rot_circle = SkyCoord(ra_rot, dec_rot, unit='rad')
-        coord_rot_edge = coord_rot_circle[sel_guide][sel_edge]
-        coord_rot_guide = coord_rot_circle[sel_guide][~sel_edge]
+        if return_coord:
+            coord_rot_circle = SkyCoord(ra_rot, dec_rot, unit='rad')
+            coord_rot_edge = coord_rot_circle[sel_guide][sel_edge]
+            coord_rot_guide = coord_rot_circle[sel_guide][~sel_edge]
 
-        return i_guide, coord_rot_guide, coord_rot_edge, coord_rot_circle
+            return i_guide, coord_rot_guide, coord_rot_edge, coord_rot_circle
+
+        else:
+            return i_guide
+
+    #--------------------------------------------------------------------------
+    def _iter_grid(self, fieldgrid):
+        # TODO
+
+        field_ras, field_decs = fieldgrid.get_center_coords()
+        n = len(fieldgrid)
+        print('Iterate through field grid..')
+
+        for i, (field_ra, field_dec) in enumerate(zip(field_ras, field_decs)):
+            print(f'\rField {i} of {n} ({i/n*100:.1f}%)..', end='')
+
+            i_guide, __, __, __ = self._select(field_ra, field_dec)
+
+            # TODO: further processing
+
+        print('\rdone.                             ')
+
+    #--------------------------------------------------------------------------
+    def select(self, field_ra=None, field_dec=None, fieldgrid=None):
+        # TODO
+
+        if field_ra is not None and field_dec is not None:
+            return self._select(field_ra, field_dec)
+
+        elif fieldgrid is not None:
+            return self._iter_grid(fieldgrid)
+
+        else:
+            raise ValueError(
+                    "Either `field_ra` and `field_dec` must be given or "
+                    "`fieldgrid`.")
 
     #--------------------------------------------------------------------------
     def visualize_selection(
             self, coord_rot_guide, coord_rot_edge, coord_rot_circle):
-        # TODO
+        """Visualize the guide star selection.
+
+        Parameters
+        ----------
+        coord_rot_guide : astropy.coordinates.SkyCoord
+            Coordinates of the selected guide stars.
+        coord_rot_edge : astropy.coordinates.SkyCoord
+            Coordinates of the stars in the guide area, but too close to the
+            edge.
+        coord_rot_circle : astropy.coordinates.SkyCoord
+            Coordinates of the stars in the instrument area.
+
+        Returns
+        -------
+        fig : matplotlib.figure.Figure
+            The Figure instance drawn to.
+        ax : matplotlib.axes.Axes
+            The Axes instance drawn to.
+        """
 
         # plot instrument field:
         offset = self.circle_offset.arcmin
@@ -272,7 +354,7 @@ class GuideStarWalopS(GuideStarSelector):
         ra = np.where(ra>180*60, ra-360*60, ra)
         plt.plot(
                 ra, coord_rot_edge.dec.arcmin,
-                marker='o', linestyle='None', color='tab:brown')
+                marker='o', linestyle='None', color='tab:orange', mfc='w')
 
         # plot guide stars:
         ra = coord_rot_guide.ra.arcmin
@@ -287,5 +369,7 @@ class GuideStarWalopS(GuideStarSelector):
         xymax = offset + radius * 1.1
         plt.xlim(xymin, xymax)
         plt.ylim(xymin, xymax)
+
+        return plt.gcf(), plt.gca()
 
 #==============================================================================
