@@ -565,19 +565,18 @@ class GuideStarWalopS(GuideStarSelector):
 
         # select closest stars
         radius = self.circle_radius - self.limit
-        circle_center = SkyCoord(
+        instrument_center = SkyCoord(
                 field_ra + self.circle_offset.rad,
                 field_dec + self.circle_offset.rad,
                 unit='rad')
-        sel_circle = self.stars_coord.separation(circle_center) < radius
+        sel_circle = self.stars_coord.separation(instrument_center) < radius
         i_circle = np.nonzero(sel_circle)[0]
         candidates_coord = self.stars_coord[sel_circle]
 
         # rotate coordinate frame:
-        field_center = SkyCoord(field_ra, field_dec, unit='rad')
         ra_rot, dec_rot = rotate_frame(
-                candidates_coord.ra.rad, candidates_coord.dec.rad, field_center
-                )
+                candidates_coord.ra.rad, candidates_coord.dec.rad,
+                instrument_center, tilt=self.instr_rot.rad)
         n = ra_rot.shape[0]
 
         # select candidates within guide area:
@@ -724,7 +723,8 @@ class GuideStarWalopS(GuideStarSelector):
     #--------------------------------------------------------------------------
     def set_params(
             self, circle_radius, circle_offset, field_size, guide_area,
-            home_pos, limit=0, scale=1, scale_xy=1, n_min=1, n_max=0):
+            home_pos, instr_rot=0, limit=0, scale=1, scale_xy=1, n_min=1,
+            n_max=0):
         """Set science field and guide area parameters.
 
         Parameters
@@ -746,6 +746,10 @@ class GuideStarWalopS(GuideStarSelector):
         home_pos : array-like
             The home position of the guide camera. Can be given in any unit.
             Multiplied with the `scale` factor that converts unit to radians.
+        instr_rot : float, optional
+            Instrument rotation in radians, counted clockwise. Use if the
+            instrument is mounted such that the guide area is not facing North-
+            East. The default is 0.
         limit : float, optional
             Only stars located off the edge of the guide area by at least this
             limit are selected as guide stars. Can be given in any unit.
@@ -775,6 +779,7 @@ class GuideStarWalopS(GuideStarSelector):
             Raised, if `limit` is negative.
             Raised, if `guide_area` is not 2-dimensional.
             Raised, if `home_pos` does not consist of two numbers.
+            Raised, if `instr_rot` is not between 0 and 2*pi.
             Raised, if `n_min` is not int or is smaller than 1.
             Raised, if `n_max` is not int or is smaller than 0.
 
@@ -797,6 +802,8 @@ class GuideStarWalopS(GuideStarSelector):
             raise ValueError("`guide_area` must be 2-dimensional.")
         if home_pos.shape[0] != 2 or home_pos.ndim != 1:
             raise ValueError("`home_pos` must consist of two numbers.")
+        if instr_rot < 0 or instr_rot >= 2 * np.pi:
+            raise ValueError("`instr_rot` must be >=0 and <2*pi.")
         if not isinstance(n_min, int) or n_min < 1:
             raise ValueError("`n_min` must be int >= 1.")
         if not isinstance(n_min, int) or n_max < 0:
@@ -809,6 +816,7 @@ class GuideStarWalopS(GuideStarSelector):
                 'field_size': field_size,
                 'guide_area': guide_area.tolist(),
                 'home_pos': home_pos.tolist(),
+                'instr_rot': instr_rot,
                 'limit': limit,
                 'scale': scale,
                 'scale_xy': scale_xy,
@@ -817,8 +825,10 @@ class GuideStarWalopS(GuideStarSelector):
         self.circle_radius = Angle(circle_radius*scale, unit='rad')
         self.circle_offset = Angle(circle_offset*scale, unit='rad')
         self.field_size = Angle(field_size*scale, unit='rad')
-        self.guide_area = Angle(guide_area*scale, unit='rad')
+        self.guide_area = \
+                Angle(guide_area*scale, unit='rad') - self.circle_offset
         self.home_pos = Angle(home_pos*scale, unit='rad')
+        self.instr_rot = Angle(instr_rot, unit='rad')
         self.limit = Angle(limit*scale, unit='rad')
         self.scale_xy = scale_xy
         self.n_min = n_min
@@ -851,17 +861,17 @@ class GuideStarWalopS(GuideStarSelector):
         offset = self.circle_offset.arcmin
         radius = self.circle_radius.arcmin
         circle = plt.Circle(
-                [offset]*2, radius, fill=False, color='k', linestyle='-')
+                [0, 0], radius, fill=False, color='k', linestyle='-')
         plt.gca().add_artist(circle)
-        plt.plot(offset, offset, marker='+', ms=10, color='k')
+        plt.plot(0, 0, marker='+', ms=10, color='k')
 
         # plot science field:
         field_size = self.field_size.arcmin
         rectangle = plt.Rectangle(
-                (-field_size/2, -field_size/2), field_size, field_size,
-                fill=False, color='0.5', linestyle='-')
+                (-field_size/2-offset, -field_size/2-offset), field_size,
+                field_size, fill=False, color='0.5', linestyle='-')
         plt.gca().add_artist(rectangle)
-        plt.plot(0, 0, marker='+', ms=10, color='0.5')
+        plt.plot(-offset, -offset, marker='+', ms=10, color='0.5')
 
         # plot guide area:
         guide_area = self.guide_area.arcmin

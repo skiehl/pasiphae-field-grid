@@ -366,7 +366,7 @@ def rot_ra(x, y, z, ra):
 
 #==============================================================================
 
-def rotate_frame(ra, dec, field_center):
+def rotate_frame(ra, dec, instrument_center, tilt=0):
     """Rotate coordinate frame such that field center becomes (0, 0).
 
     Parameters
@@ -375,8 +375,13 @@ def rotate_frame(ra, dec, field_center):
         Right ascension(s) in radians.
     dec : np.ndarray or float
         Declination(s) in radians.
-    field_center : astropy.coordinates.SkyCoord
-        Coordinates of the field center.
+    instrument_center : astropy.coordinates.SkyCoord
+        Coordinates of the instrument center.
+    circle_offset : astropy.coordinates.Angle
+        Offset of the circle center from the science field center.
+    tilt : float, optional
+        Rotation angle in radians to account for instrument orientation. The
+        default is 0.
 
     Returns
     -------
@@ -387,8 +392,12 @@ def rotate_frame(ra, dec, field_center):
     """
 
     x, y, z = sphere_to_cart(ra, dec)
-    x, y, z = rot_ra(x, y, z, -field_center.ra.rad)
-    x, y, z = rot_dec(x, y, z, -field_center.dec.rad)
+    x, y, z = rot_ra(x, y, z, -instrument_center.ra.rad)
+    x, y, z = rot_dec(x, y, z, -instrument_center.dec.rad)
+
+    if tilt:
+        x, y, z = rot_tilt(x, y, z, tilt)
+
     ra_rot, dec_rot = cart_to_sphere(x, y, z)
     ra_rot = np.where(ra_rot > np.pi, ra_rot-2*np.pi, ra_rot)
 
