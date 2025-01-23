@@ -409,7 +409,7 @@ class FieldGrid(metaclass=ABCMeta):
 
         # stop if Galactic latitude limit is 0:
         if not gal_lat_lim:
-            return np.zeros(n_fields)
+            return np.zeros(n_fields, dtype=bool)
 
         # otherwise, start checking:
         if verbose > 1:

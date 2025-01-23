@@ -322,9 +322,8 @@ class FieldGridVisualizer():
 
     #--------------------------------------------------------------------------
     def orthographic(
-            self, *grids, gal_lat_lim=0, central_longitude=25.,
-            central_latitude=45., outlines=False, ax=None, **kwargs):
-        # TODO: docstring
+            self, *grids, gal_lat_lim=0, central_longitude=25,
+            central_latitude=45, outlines=False, ax=None, **kwargs):
         """Orthographic plot of fields.
 
         Parameters
@@ -340,16 +339,18 @@ class FieldGridVisualizer():
             different from zero. The default is 0.
         central_longitude : float
             Longitude in deg that is in the center of the projection. The
-            default is 25..
+            default is 25.
         central_latitude : float
             Latitude in deg that is in the center of the projection. The
-            default is 45..
+            default is 45.
         outlines : bool, optional
             If True, plot field outlines. Otherwise only field centers are
             plotted. The default is False.
         ax : matplotlib.axes.Axes, optional
             The Axes instance to draw to. If no Axes is provided a new figure
             and axes instance are created. The default is None.
+        kwargs
+            Keyword arguments forwarded to matplotlib's plot() method.
 
         Raises
         ------
@@ -401,7 +402,8 @@ class FieldGridVisualizer():
         return fig, ax
 
     #--------------------------------------------------------------------------
-    def mollweide(self, *grids, gal_lat_lim=0, outlines=False, ax=None, **kwargs):
+    def mollweide(
+            self, *grids, gal_lat_lim=0, outlines=False, ax=None, **kwargs):
         """Mollweide plot of fields.
 
         Parameters
@@ -421,6 +423,8 @@ class FieldGridVisualizer():
         ax : matplotlib.axes.Axes, optional
             The Axes instance to draw to. If no Axes is provided a new figure
             and axes instance are created. The default is None.
+        kwargs
+            Keyword arguments forwarded to matplotlib's plot() method.
 
         Raises
         ------
